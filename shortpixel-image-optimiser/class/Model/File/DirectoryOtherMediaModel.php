@@ -532,7 +532,6 @@ class DirectoryOtherMediaModel extends DirectoryModel
 			$activeFolders = $otherMediaControl->getActiveDirectoryIDS();
 
       $fs = \wpSPIO()->filesystem();
-			$updated = false;
 
 
       foreach($files as $fileObj)
@@ -554,7 +553,6 @@ class DirectoryOtherMediaModel extends DirectoryModel
 							 {
 								   $imageObj->setFolderId($this->id);
 									 $imageObj->saveMeta();
-									 $updated = true;
 							 }
 						}
 
@@ -570,7 +568,6 @@ class DirectoryOtherMediaModel extends DirectoryModel
           {
   	         $imageObj->setFolderId($this->id);
              $imageObj->saveMeta();
-						 $updated = true;
 
              if (\wpSPIO()->env()->is_autoprocess)
              {
@@ -581,11 +578,6 @@ class DirectoryOtherMediaModel extends DirectoryModel
           }
 
       }
-
-			if (true === $updated)
-			{
-				$this->updated = time();
-			}
   }
 
 

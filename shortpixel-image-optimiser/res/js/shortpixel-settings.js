@@ -85,6 +85,7 @@ class ShortPixelSettings
 		var keyField = this.root.querySelector('.apifield i.eye');
 		keyField.addEventListener('click', self.ToggleApiFieldEvent.bind(self));
 
+
 	}
 
 	InitAjaxForm()
@@ -251,8 +252,8 @@ class ShortPixelSettings
 
 		var root = this.root;
 
-		var el = root.querySelector('input[name="exif"]');
-		var remove_elements = root.querySelectorAll('input[name="exif"], input[name="png2jpg"]');
+	 	var el = root.querySelector('input[name="removeExif"]');
+		var remove_elements = root.querySelectorAll('input[name="removeExif"], input[name="png2jpg"]');
 		var checks = [':checked', ':not(:checked)'];
 
 
@@ -742,15 +743,11 @@ FormResponseEvent(json)
 			}
 			if (json.display_notices)
 			{
-
-					let anchor = document.querySelector('.wp-header-end');
-					let screen = window.ShortPixelProcessor.GetScreen();
-
-					screen.AppendNotices(json.display_notices, anchor);
-/*					for (let i = 0; i < json.display_notices.length; i++)
+					let anchor = document.querySelector('.wp-header-end')
+					for (let i = 0; i < json.display_notices.length; i++)
 					{
 						anchor.insertAdjacentHTML('afterend', json.display_notices[i]);
-					} */
+					}
 			}
 
 		saveDialog.classList.add('show');

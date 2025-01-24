@@ -461,6 +461,8 @@ class SettingsViewController extends \ShortPixel\ViewController
       {
          $this->view->data = (Object) $this->model->getData();
 
+
+
 				 $this->loadAPiKeyData();
          $this->loadDashBoardInfo();
 
@@ -625,17 +627,13 @@ class SettingsViewController extends \ShortPixel\ViewController
 
 			protected function avifServerCheck()
       {
-           return;
-           /*
-
-            This has been superseeded in hacky solution in the Model tiself.
     			$noticeControl = AdminNoticesController::getInstance();
 					$notice = $noticeControl->getNoticeByKey('MSG_AVIF_ERROR');
 
           if (is_object($notice))
           {
 					     $notice->check();
-          } */
+          }
       }
 
       /** Checks on things and set them for information. */
@@ -773,8 +771,8 @@ class SettingsViewController extends \ShortPixel\ViewController
           }
 
           // handle 'reverse' checkbox.
-          $exif = isset($post['exif']) ? 0 : 1;
-          $post['exif'] = $exif;
+          $keepExif = isset($post['removeExif']) ? 0 : 1;
+          $post['keepExif'] = $keepExif;
 
           // checkbox overloading
           $png2jpg = (isset($post['png2jpg']) ? (isset($post['png2jpgForce']) ? 2 : 1): 0);
@@ -1025,7 +1023,6 @@ class SettingsViewController extends \ShortPixel\ViewController
 						$json = new \stdClass;
 						$json->result = true;
 
-
 						$noticeController = Notice::getInstance();
 
 						$json->notices = $noticeController->getNewNotices();
@@ -1034,7 +1031,7 @@ class SettingsViewController extends \ShortPixel\ViewController
 							$json->display_notices = [];
 							foreach($json->notices as $notice)
 							{
-								$json->display_notices[] = $notice->getForDisplay(['class' => 'is_ajax', 'is_removable' => false]);
+								$json->display_notices[] = $notice->getForDisplay();
 							}
 						}
 						if ($redirect !== 'self')

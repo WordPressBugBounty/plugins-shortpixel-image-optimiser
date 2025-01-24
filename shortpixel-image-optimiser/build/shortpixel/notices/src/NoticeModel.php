@@ -337,26 +337,14 @@ class NoticeModel //extends ShortPixelModel
           $url = wp_json_encode(admin_url('admin-ajax.php'));
           $js = "function shortpixel_notice_dismiss(event) {
                     event.preventDefault();
+                    var ev = event.detail;
                     var target = event.target;
-                    if (target.tagName !== 'button') // tricky this
-                    {
-                        target = target.closest('button');
-                    }
-                    var parent = target.closest('.shortpixel-notice');
-
-                    if (target.hasAttribute('data-dismisstype'))
-                    {
-                       var type = target.getAttribute('data-dismisstype');
-                    }
-                    else {
-                       var type = 'dismiss';
-                    }
+                    var parent = target.parentElement;
 
                     var data = {
                       'plugin_action': 'dismiss',
                       'action' : '$this->notice_action',
                       'nonce' : '$nonce',
-                      'dismisstype' : type,
                     }
                     data.time = target.getAttribute('data-dismiss');
                     data.id = parent.getAttribute('id');
@@ -370,8 +358,7 @@ class NoticeModel //extends ShortPixelModel
           }";
       }
 
-      // This all needs to be formalized in a better script, regardless of class, also in proper scope.
-      $js .=  ' jQuery("#' . $this->id . '").find(".notice-dismiss, .notice-dismiss-action").on("click", shortpixel_notice_dismiss); ';
+      $js .=  ' jQuery("#' . $this->id . '").find(".notice-dismiss").on("click", shortpixel_notice_dismiss); ';
 
       return "\n jQuery(document).ready(function(){ \n" . $js . "\n});";
   }

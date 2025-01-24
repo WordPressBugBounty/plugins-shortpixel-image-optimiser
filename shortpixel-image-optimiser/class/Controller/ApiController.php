@@ -5,7 +5,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  exit; // Exit if accessed directly.
 }
 
-use ShortPixel\Helper\UtilHelper as UtilHelper;
 use ShortPixel\ShortPixelLogger\ShortPixelLogger as Log;
 
 class ApiController
@@ -191,7 +190,7 @@ class ApiController
         'key' => $keyControl->forceGetApiKey(),
         'lossy' => $args['compressionType'],
         'cmyk2rgb' => $settings->CMYKtoRGBconversion,
-        'keep_exif' => UtilHelper::getExifParameter(),
+        'keep_exif' => ($settings->keepExif ? "1" : "0"),
         'convertto' => $convertTo,
         'resize' => $settings->resizeImages ? 1 + 2 * ($settings->resizeType == 'inner' ? 1 : 0) : 0,
         'resize_width' => $settings->resizeWidth,

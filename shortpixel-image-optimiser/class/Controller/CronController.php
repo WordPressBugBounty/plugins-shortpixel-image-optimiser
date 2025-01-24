@@ -37,7 +37,6 @@ class CronController
 
        $this->custom_scheduler();
      }
-
   }
 
   public static function getInstance()
@@ -117,7 +116,6 @@ class CronController
   {
       $this->bulkRemoveAll();
       $this->custom_scheduler(true);
-      $this->removeLegacyCron();
   }
 
   protected function bulk_scheduler()
@@ -146,29 +144,22 @@ class CronController
       ];
 
       $scheduled = wp_next_scheduled($name, $args);
-
-			$add_cron = (false == \wpSPIO()->settings()->showCustomMedia) ? false : true;
-			$add_cron = apply_filters('shortpixel/othermedia/add_cron', $add_cron);
+      $add_cron = apply_filters('shortpixel/othermedia/add_cron', true);
 
       if (false == $scheduled && true === $add_cron && false === $unschedule)
       {
+        //$otherMediaController = OtherMediaController::getInstance();
+      //  if (true === $otherMediaController->hasCustomImages())
+        //{
                 wp_schedule_event(time(), 'spio_interval_30min', $name, $args);
+      //  }
+
       }
       elseif(false !== $scheduled && (false === $add_cron || true == $unschedule) )
       {
            wp_unschedule_event(wp_next_scheduled($name, $args), $name, $args);
       }
 
-  }
-
-  protected function removeLegacyCron()
-  {
-      $name = 'spio-refresh-dir';
-      $args = ['args' => [
-        'amount' => 10]
-      ];
-
-      wp_unschedule_event(wp_next_scheduled($name, $args), $name, $args);
   }
 
   protected function bulkScheduleEvent($queue_type, $options, $args)

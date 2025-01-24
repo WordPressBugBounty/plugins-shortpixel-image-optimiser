@@ -665,10 +665,6 @@ window.ShortPixelProcessor =
 		{
 			 return ShortPixelConstants[0].WP_PLUGIN_URL;
 		},
-    GetScreen: function()
-    {
-       return this.screen;
-    },
     Debug: function (message, messageType)
     {
       if (typeof messageType == 'undefined')
