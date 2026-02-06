@@ -12,27 +12,24 @@ use ShortPixel\ShortPixelLogger\ShortPixelLogger as Log;
 
 class QueueItemData
 {
-
         protected $urls; 
-        protected $url; 
         protected $forceExclusion; 
         protected $action; 
         protected $next_actions; // multiple actions requeue mechanism. 
         protected $next_keepdata; // keep this data for next actions
         protected $smartcrop; 
         protected $remote_id; // for Ai 
-        protected $returndatalist;
-        protected $paramlist; 
+        protected $returndatalist; // Datalist to return unharmed
+        protected $paramlist;  // Parameter list being used in the API 
         protected $files; 
         protected $flags; 
-        protected $compressionType; 
-        protected $compressionTypeRequested;
-        protected $tries;
-        protected $block;
-        protected $counts;
+        protected $compressionType;  // Compressiontype used for item
+        protected $compressionTypeRequested; // When converting, this is the compressiontype to be used after converting ( conversion lossless )
+        protected $tries; // Amount of tries done, limit to prevent hanging items 
+        protected $block; // Block indicates this item is being processing somewhere and should be ignored during that process
+        protected $counts; // Amount of items, for UI counters
         protected $queue_list_order;  // optional from Queue class, the place of the queue. This might prevent 'next-action' to end up way at the bottom. 
         
-
         public function __construct()
         {
              
@@ -68,7 +65,6 @@ class QueueItemData
         {
             if (property_exists($this, $name))
             {
-
                  $this->$name = $value; 
             }             
             else
@@ -86,6 +82,10 @@ class QueueItemData
               }
         }
 
+        /** Return stdClass object representation of database storage (without storing class representation)
+         * 
+         * @return object 
+         */
         public function toObject()
         {
              $vars = get_object_vars($this);
@@ -94,6 +94,11 @@ class QueueItemData
             
         }
 
+        /** Check if this item has a specific action to process
+         * 
+         * @param mixed $action 
+         * @return bool 
+         */
         public function hasAction($action)
         {
             if (is_array($this->next_actions))
@@ -200,6 +205,20 @@ class QueueItemData
             }
 
             return $args;
+        }
+
+        public function addCount($new_count)
+        {
+             if (! is_object($this->counts))
+             {
+                 $this->counts = new \stdClass; 
+             }
+
+             foreach($new_count as $name => $value)
+             {
+                 $this->counts->{$name} = $value;
+             }
+
         }
 
         

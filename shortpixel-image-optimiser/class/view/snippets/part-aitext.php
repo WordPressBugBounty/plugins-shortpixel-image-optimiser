@@ -1,5 +1,9 @@
 <?php
 
+if ( ! defined( 'ABSPATH' ) ) {
+ exit; // Exit if accessed directly.
+}
+
 use ShortPixel\Controller\ApiKeyController;
 use ShortPixel\Controller\QuotaController;
 use ShortPixel\Model\AiDataModel;
@@ -12,7 +16,7 @@ $item_id = $this->data['item_id'];
 $has_data = $this->data['has_data'];
 //$isSupported = $this->data['isSupported'];
 $isDifferent = $this->data['isDifferent'];
-$dataItems = implode(',',$this->data['dataItems']);
+$dataItems = implode(', ',$this->data['dataItems']);
 
 $is_processable = $this->data['is_processable']; 
 $processable_reason = $this->data['processable_reason'];

@@ -431,7 +431,7 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 		} else
 			$height = $wpmeta['height'];
 
-		if (isset($wpmeta['filesize'])) {
+		if (isset($wpmeta['filesize']) && intval($wpmeta['filesize']) > 0) {
 			$this->filesize = $wpmeta['filesize'];
 		}
 
@@ -474,7 +474,7 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 						$missingDefinitions[] = $name;
 					}
 
-					if (isset($data['filesize']))
+					if (isset($data['filesize']) && intval($data['filesize']) > 0)
 						$thumbObj->filesize = $data['filesize'];
 
 					$thumbnails[$name] = $thumbObj;
@@ -1455,6 +1455,15 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 
 		$settings = \wpSPIO()->settings();
 
+		if (false !== $this->checkDateExcluded())
+		{
+			$date_bool = $this->isDateExcluded();
+			if (true === $date_bool)
+			{
+				 return false; 
+			}
+		}
+
 		// If already true, this item can be processed. No need for further checks.
 		if ($strict || true === $bool) {
 			return $bool;
@@ -1464,8 +1473,6 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 		if (true === $this->isOptimizePrevented()) {
 			return false;
 		}
-
-
 
 		if (! $bool) // if parent is not processable, check if thumbnails are, can still have a work to do.
 		{
@@ -1692,6 +1699,16 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 		$originalFile->setName($this->originalImageKey); // required for named API requests et al.
 		$originalFile->setImageType(self::IMAGE_TYPE_ORIGINAL);
 
+		// WordPress converts by default in new version s HEIC / BMP to JPG, but leaves the originalFile as Heic, ignore it then. 
+		if ($originalFile->getExtension() !== $this->getExtension())
+		{
+			 $difficult_extensions = ['heic', 'heif', 'bmp', 'tiff']; 
+			if (in_array($originalFile->getExtension(), $difficult_extensions))
+			{
+				return false; 
+			}			  
+		} 
+
 		if ($originalFile->exists() && $originalFile->getFullPath() !== $this->getfullPath()) {
 			$this->original_file = $originalFile;
 			$this->is_scaled = true;
@@ -1823,6 +1840,54 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 		}
 	}
 
+	protected function isDateExcluded()
+	{
+		 $options = $this->checkDateExcluded();
+
+		 $post = get_post($this->id); 
+		 $date = $post->post_date; 
+
+		$postDate = new \DateTime($date);
+
+		 try{
+			$date = new \DateTime($options['date']); 
+		 }
+		 catch(\Exception $e)
+		 {
+			 Log::addError('Date exclusion - not valid date'); 
+			 return false; 
+		 }
+
+		 $when = isset($options['when']) ? $options['when'] : 'before'; 
+
+		 $bool = false; 
+
+		 switch($when)
+		 {
+			 case 'before':
+				if ($date->format('U') > $postDate->format('U'))
+				{
+					$bool = true; 
+				}
+			 break; 
+			 case 'after': 
+			 default:
+			 if ($date->format('U') < $postDate->format('U'))
+				{
+					$bool = true; 
+				}
+			 break; 
+		 }
+
+		if (true === $bool)
+		{
+			 $this->processable_status = ImageModel::P_EXCLUDE_DATE; 
+		}
+
+		 return $bool; 
+
+	}
+
 	// Check if anything is optimized. Main image can't be relied upon as in the past since it can be excluded, so anything optimized is the check to show the optimized options like restore.
 	public function isSomethingOptimized()
 	{
@@ -1870,11 +1935,12 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 	 */
 	public function restore($args = array())
 	{
+		/* Removing this, should be processes in Optimizers
 		$defaults = array(
 			'keep_in_queue' => false, // used for bulk restore.
-		);
+		); */
 
-		$args = wp_parse_args($args, $defaults);
+		//$args = wp_parse_args($args, $defaults);
 
 		$fs = \wpSPIO()->filesystem();
 
@@ -2021,9 +2087,9 @@ class MediaLibraryModel extends \ShortPixel\Model\Image\MediaLibraryThumbnailMod
 			$this->saveMeta(); // Save if something is not restored.
 		}
 
-		if ($args['keep_in_queue'] === false) {
+		/*if ($args['keep_in_queue'] === false) {
 			$this->dropFromQueue();
-		}
+		} */
 
 		update_post_meta($this->get('id'), '_wp_attachment_metadata', $wpmeta);
 

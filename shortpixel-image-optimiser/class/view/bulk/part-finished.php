@@ -1,5 +1,6 @@
 <?php
 namespace ShortPixel;
+use ShortPixel\Helper\UiHelper as UiHelper;
 
 if ( ! defined( 'ABSPATH' ) ) {
  exit; // Exit if accessed directly.
@@ -7,58 +8,65 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 <section class="panel finished" data-panel="finished">
   <div class="panel-container">
+  
+  <?php $this->loadView('bulk/part-progressbar', false, ['part' => 'finished']); ?>
 
-    <h3 class="heading">
-      <?php esc_html_e('The ShortPixel Bulk Processing is finished' ,'shortpixel-image-optimiser'); ?>
-
-      <div class='average-optimization'>
-          <p><?php esc_html_e('Average Optimization','shortpixel-image-optimiser'); ?></p>
-          <svg class="opt-circle-average" viewBox="-10 0 150 140">
+      <div class='average-optimization shortpixel-hide'>
+          <p><?php esc_html_e('Your images are now this much smaller on average: ','shortpixel-image-optimiser'); ?></p>
+          <svg class="opt-circle-average" viewBox="-10 0 130 100">
                         <path class="trail" d="
                             M 50,50
                             m 0,-46
                             a 46,46 0 1 1 0,92
                             a 46,46 0 1 1 0,-92
-                            " stroke-width="16" fill-opacity="0">
+                            " stroke-width="10" fill-opacity="0">
                         </path>
                         <path class="path" d="
                             M 50,50
                             m 0,-46
                             a 46,46 0 1 1 0,92
                             a 46,46 0 1 1 0,-92
-                            " stroke-width="16" fill-opacity="0" style="stroke-dasharray: 289.027px, 289.027px; stroke-dashoffset: 180px;">
+                            " stroke-width="10" fill-opacity="0" style="stroke-dasharray: 289.027px, 289.027px; stroke-dashoffset: 180px;">
                         </path>
                         <text class="text" x="50" y="50"><?php esc_html_e('N/A', 'shortpixel-image-optimiser'); ?></text>
             </svg>
 
       </div>
+    <h3 class="heading">
+       <?php esc_html_e('The ShortPixel Bulk Processing is finished' ,'shortpixel-image-optimiser'); ?>
     </h3>
 
-    <?php $this->loadView('bulk/part-progressbar', false); ?>
+      <div class='dashboard-text'>
+         <a class='button' type='button' href="https://wordpress.org/support/plugin/shortpixel-image-optimiser/reviews/#new-post" target="_blank">
+            <span class='icon'><?php echo UIHelper::getIcon('res/images/icon/heart.svg', ['width' => '16']); ?></span> 
+            <span><?php _e('Rate ShortPixel', 'shortpixel-image-optimiser'); ?></span>
+         </a>
+      </div>
 		<span class='hidden' data-check-media-total data-stats-media="total">0</span>
 
-    <span class='hidden' data-check-media-customOperation data-stats-media="isCustomOperation">-1</span>
+    <span class='hidden' data-check-total-customOperation data-stats-total="isCustomOperation">-1</span>
 
-		<div class='bulk-summary' data-check-visibility="false" data-control='data-check-media-customOperation'>
+		<div class='bulk-summary' data-check-visibility="false" data-control='data-check-total-customOperation'>
 		<p class='finished-paragraph'>
 			<?php printf(__('Congratulations, ShortPixel has optimized %s %s images and thumbs %s for your website! Yay to faster loading websites! %s', 'shortpixel-image-optimiser'), '<b>', '<span data-stats-total="total"></span>','</b>', '&#x1F389;');
 			?>
-			<br>
+<!--			<br>
 			<?php
 			printf(__('ShortPixel plugins are installed on hundreds of thousands of websites and we save our users over 500 GB by optimizing over 15 million images. Each and every day! %s', 'shortpixel-image-optimiser'), '&#x1F4AA;');
 			?>
 			<br>
 		<?php
 			printf(__('We have been working on improving ShortPixel every day for over 7 years. It is very motivating for us when customers take a minute to leave us a %sreview%s. We thank you for that! %s', 'shortpixel-image-optimiser'), '<a href="https://wordpress.org/support/plugin/shortpixel-image-optimiser/reviews/?filter=5" target="_blank">','</a>', '&#x1F64C;');
-		?>
+		?> -->
 		</p>
 	</div>
+  
 
     <div class='bulk-summary' data-check-visibility data-control="data-check-media-total">
       <div class='heading'>
         <span><i class='dashicons dashicons-images-alt2'>&nbsp;</i> <?php esc_html_e('Media Library','shortpixel-image-optimiser'); ?>
           <?php if (false !== $this->view->customOperationMedia) {
-             echo " - <span class='special-op'>" . $this->view->customOperationMedia . "</span>";
+             echo "</br><span class='special-op'>" . $this->view->customOperationMedia . "</span>";
           } ?>
         </span>
 
@@ -78,7 +86,10 @@ if ( ! defined( 'ABSPATH' ) ) {
         <span><?php esc_html_e('Images Left','shortpixel-image-optimiser'); ?>: <i data-stats-media="in_queue">0</i></span>
         <span><?php esc_html_e('Errors','shortpixel-image-optimiser'); ?>: <i data-check-media-fatalerrors data-stats-media="fatal_errors" class='error'>0 </i>
 					<span class="display-error-box" data-check-visibility data-control="data-check-media-fatalerrors" ><label title="<?php esc_html_e('Show Errors', 'shortpixel-image-optimiser'); ?>">
-						<input type="checkbox" name="show-errors" value="show" data-action='ToggleErrorBox' data-errorbox='media' data-event='change'><?php esc_html_e('Show Errors','shortpixel-image-optimiser'); ?></label>
+						<input type="checkbox" name="show-errors" value="show" data-action='ToggleErrorBox' data-errorbox='media' data-event='change'><?php esc_html_e('Show Errors','shortpixel-image-optimiser'); ?>
+            <span class='collap-arrow'><?php echo UIHelper::getIcon('res/images/icon/chevron.svg'); ?></span>
+
+        </label>
 				 </span>
         </span>
 
@@ -103,7 +114,7 @@ if ( ! defined( 'ABSPATH' ) ) {
       <div class='heading'>
         <span><i class='dashicons dashicons-open-folder'>&nbsp;</i> <?php esc_html_e('Custom Media','shortpixel-image-optimiser'); ?>
           <?php if (false !== $this->view->customOperationCustom) {
-             echo " - <span class='special-op'>" . $this->view->customOperationCustom . "</span>";
+             echo "</br><span class='special-op'>" . $this->view->customOperationCustom . "</span>";
           } ?>
         </span>
         <span>
@@ -121,7 +132,10 @@ if ( ! defined( 'ABSPATH' ) ) {
         <span><?php esc_html_e('Images Left', 'shortpixel-image-optimiser') ?>: <i data-stats-custom="in_queue">-</i></span>
         <span><?php esc_html_e('Errors','shortpixel-image-optimiser') ?>: <i data-check-custom-fatalerrors  data-stats-custom="fatal_errors" class='error'>-</i>
 								<span class="display-error-box" data-check-visibility data-control="data-check-custom-fatalerrors" ><label title="<?php esc_html_e('Show Errors', 'shortpixel-image-optimiser'); ?>">
-									<input type="checkbox" name="show-errors" value="show" data-action='ToggleErrorBox' data-errorbox='custom' data-event='change'>Show Errors</label>
+									<input type="checkbox" name="show-errors" value="show" data-action='ToggleErrorBox' data-errorbox='custom' data-event='change'><?php esc_html_e('Show Errors','shortpixel-image-optimiser'); ?>
+            <span class='collap-arrow'><?php echo UIHelper::getIcon('res/images/icon/chevron.svg'); ?></span>
+
+				</label>
 							 </span>
 				</span>
 

@@ -6,7 +6,7 @@ if (! defined('ABSPATH')) {
 	exit; // Exit if accessed directly.
 }
 
-
+use ShortPixel\Controller\Api\RequestManager;
 use ShortPixel\Controller\View\ListMediaViewController as ListMediaViewController;
 use ShortPixel\Controller\View\OtherMediaViewController as OtherMediaViewController;
 use ShortPixel\Controller\View\OtherMediaFolderViewController as OtherMediaFolderViewController;
@@ -27,6 +27,7 @@ use ShortPixel\Controller\View\SettingsViewController as SettingsViewController;
 use ShortPixel\Controller\Queue\QueueItems as QueueItems;
 use ShortPixel\Model\AiDataModel;
 use ShortPixel\Model\Queue\QueueItem;
+use ShortPixel\ViewController;
 
 // Class for containing all Ajax Related Actions.
 class AjaxController
@@ -135,6 +136,11 @@ class AjaxController
 		$json->$type->is_optimizable = (false !== $item) ? $item->isProcessable() : false;
 		$json->$type->is_restorable = (false !== $item)  ? $item->isRestorable() : false;
 		$json->$type->id = $id;
+		$json->$type->image = [
+			'width' => $item->get('width'), 
+			'height' => $item->get('height'), 
+			'extension' => $item->getExtension(), 
+		];
 		$json->$type->results = null;
 		$json->$type->is_error = false;
 		$json->status = true;
@@ -153,7 +159,7 @@ class AjaxController
 
 		// Notice that POST variables are always string, so 'true', not true.
 		// phpcs:ignore -- Nonce is checked
-		$isBulk = (isset($_POST['isBulk']) && $_POST['isBulk'] === 'true') ? true : false;
+		$isBulk = (isset($_POST['isBulk']) && $_POST['isBulk'] == 'true') ? true : false;
 		// phpcs:ignore -- Nonce is checked
 		$queue = (isset($_POST['queues'])) ? sanitize_text_field($_POST['queues']) : 'media,custom';
 
@@ -241,7 +247,7 @@ class AjaxController
 				$json = $this->purgeCDNCache($json, $data); 
 			break;
 			case 'settings/importexport':
-				$jso = $this->importexportSettings($json, $data);
+				$json = $this->importexportSettings($json, $data);
 			break; 
 			case 'ai/requestalt': 
 				$json = $this->requestAlt($json, $data);	
@@ -275,6 +281,10 @@ class AjaxController
 				$this->checkActionAccess($action, 'is_admin_user');
 				$json = $this->startRestoreAll($json, $data);
 				break;
+			case 'startBulkUndoAI':
+				$this->checkActionAccess($action, 'is_admin_user');
+				$json = $this->startUndoAI($json, $data);
+				break;
 			case 'startMigrateAll':
 				$this->checkActionAccess($action, 'is_admin_user');
 				$json = $this->startMigrateAll($json, $data);
@@ -293,7 +303,7 @@ class AjaxController
 				break;
 			case 'request_new_api_key': // @todo Dunnoo why empty, should go if not here.
 
-				break;
+			break;
 			case "loadLogFile":
 				$this->checkActionAccess($action, 'is_editor');
 				$data['logFile'] = isset($_POST['loadFile']) ? sanitize_text_field($_POST['loadFile']) : null;
@@ -321,7 +331,7 @@ class AjaxController
 				$this->checkActionAccess($action, 'is_editor');
 				$json = $this->scanNextFolder($json, $data);
 				break;
-			case 'resetScanFolderChecked';
+			case 'resetScanFolderChecked':
 				$this->checkActionAccess($action, 'is_editor');
 				$json = $this->resetScanFolderChecked($json, $data);
 				break;
@@ -332,19 +342,27 @@ class AjaxController
 			case 'settings/changemode':
 				$this->handleChangeMode($data);
 				break;
-			default:
 			case 'settings/getAiExample': 
+				$this->checkActionAccess($action, 'is_admin_user');
 				$this->getSettingsAiExample($data);
 			break; 
 			case 'settings/setAiImageId': 
+				$this->checkActionAccess($action, 'is_admin_user');
 				$this->setSettingsAiImage($data);
 			break; 
 			case 'settings/getNewAiImagePreview': 
 				$this->getNewAiImagePreview($data);
 			break;
+			case 'media/getEditorPopup': 
+				$this->getEditorPopup($data);
+			break; 
+			case 'media/getEditorPreview': 
+				$this->getEditorPreview($data);
+			break;
+			default:
 				$json->$type->message = __('Ajaxrequest - no action found', 'shorpixel-image-optimiser');
 				$json->error = self::NO_ACTION;
-				break;
+			break;
 		}
 		$this->send($json);
 	}
@@ -401,11 +419,197 @@ class AjaxController
 		exit('ajaxcontroller - formsubmit');
 	}
 
+	protected function getEditorPopup($data)
+	{
+		 $item_id = intval($_POST['id']);
+		 $mediaItem = $this->getMediaItem($item_id, 'media');
+		 $this->checkImageAccess($mediaItem);
+
+		 $action_name = isset($_POST['action_name']) ? sanitize_text_field($_POST['action_name']) : 'replace'; 
+
+		 $previewImage = UiHelper::findBestPreview($mediaItem, 800);
+
+		 $json = new \stdClass; 
+		 $json->item_id = $item_id; 
+
+		 $post = get_post($item_id); 
+
+		 $originalImage = $mediaItem; 
+		 if ($mediaItem->isScaled())
+		 {
+			 $originalImage = $mediaItem->getOriginalFile(); 
+		 }
+				 
+		 $view = new ViewController();
+		 $view->addData([
+			'previewImage' => $previewImage, 
+			'originalImage' => $originalImage, 
+			'placeholderImage' => \wpSPIO()->plugin_url('res/img/bulk/placeholder.svg'), 
+			'item_id' => $item_id, 
+			'post_title' => $post->post_title, 
+			'action_name' => $action_name, 
+			]
+		 ); 
+
+		 $json->popup = $view->returnView('snippets/media-popup'); 
+		 $json->action_name = $action_name; 
+		 
+
+		 $this->send($json);
+
+	}
+	protected function getEditorPreview($data)
+	{
+		$item_id = $data['id'];
+		$is_preview = true; // default to no action 
+		$is_preview = (isset($_POST['is_preview'])) ? filter_var(sanitize_text_field($_POST['is_preview']), FILTER_VALIDATE_BOOL) : $is_preview; 
+
+		$action_name = isset($_POST['action_name']) ? sanitize_text_field($_POST['action_name']) : 'remove'; 
+
+		$mediaItem = $this->getMediaItem($item_id, 'media');
+
+		$this->checkImageAccess($mediaItem);
+		$qItem = QueueItems::getImageItem($mediaItem);
+
+		// General needed: 
+		$opener = isset($_POST['opener']) ? sanitize_text_field($_POST['opener']) : ''; 
+		$attached_post_id = isset($_POST['attached_post_id']) ? intval($_POST['attached_post_id']) : 0; 
+		$newFileName = isset($_POST['newFileName']) ? sanitize_file_name($_POST['newFileName']) : false; 
+		$newPostTitle = isset($_POST['newPostTitle']) ? sanitize_text_field($_POST['newPostTitle']) : ''; 
+		$refresh = isset($_POST['refresh']) ? filter_var(sanitize_text_field($_POST['refresh']), FILTER_VALIDATE_BOOL) : false;  
+
+		$args = [
+			'newFileName' => $newFileName, 
+			'newPostTitle' => $newPostTitle, 
+			'refresh' => $refresh, 
+			'attached_post_id' => $attached_post_id, 
+		]; 
+
+		// For remove background : 
+		if ('remove' === $action_name)
+		{
+			$backgroundType = isset($_POST['background_type']) ? sanitize_text_field($_POST['background_type']) : 'transparent'; 
+			$backgroundColor = isset($_POST['background_color']) ? sanitize_text_field($_POST['background_color']) : false; 
+			$backgroundTransparency = isset($_POST['background_transparency']) ? sanitize_text_field($_POST['background_transparency']) : '00';
+			if ('solid' == $backgroundType)
+			{
+				 $args['replace_color'] = $backgroundColor; 
+				 $args['replace_transparency'] = $backgroundTransparency; 
+				 $args['do_transparent'] = false;
+			}
+			else
+			{
+				 $args['do_transparent'] = true; 
+			}
+
+			$optimizer = $qItem->getApiController('remove_background');
+			$qItem->newRemoveBackgroundAction(array_merge(['is_preview' => $is_preview], $args));
+
+		}
+		elseif ('scale' == $action_name) 		// For image scaling: 		
+		{
+			$args['scale'] = isset($_POST['scale']) ? intval($_POST['scale']) : 2; 
+
+			$optimizer = $qItem->getApiController('scale_image');
+			$qItem->newScaleImageAction(array_merge(['is_preview' => $is_preview], $args));
+		}
+
+
+		//$args = []; 
+		
+		/*$args['do_transparent'] = ('transparent' == $backgroundType) ? true : false; 
+		$args['newFileName'] = $newFileName; 
+		$args['newPostTitle'] = $newPostTitle; 
+		$args['refresh'] = $refresh;
+		$args['attached_post_id'] = $attached_post_id; 
+	*/		
+
+		$optimizer->sendToProcessing($qItem);
+		$optimizer->handleAPIResult($qItem);  
+
+		$result = $qItem->result(); 
+		$qItem->data()->tries++; 
+		
+	//	$state = 'requestAlt'; // mimic here the double task of the Ai gen. 
+		$is_done = false; 
+		$i = 0; 
+
+		while (false === $is_done)
+		{
+			Log::addTemp('Result', $result);
+
+			if (false === property_exists($result, 'is_done') || $result->is_done === false)
+			{ 
+				// Any subsequent request *must* be hard refresh no or it hangs.
+
+				$optimizer->sendToProcessing($qItem);
+				$optimizer->handleAPIResult($qItem);  
+				$qItem->data()->tries++; 
+
+				$result = $qItem->result();
+			}
+			
+			if (property_exists($result, 'is_done') && true === $result->is_done)
+			{
+
+				if ($result->apiStatus === RequestManager::STATUS_SUCCESS && false === $is_preview )
+				{
+					$new_attach_id = $qItem->result()->new_attach_id; 
+					if ('edit' == $opener)
+					{
+						$redirect = admin_url('post.php?post=' . $new_attach_id . '&action=edit'); 			 
+					}
+					elseif ('gallery' == $opener)
+					{
+						$redirect = admin_url('upload.php?item=' . $new_attach_id);	 
+					}
+					elseif ('gutenberg' == $opener)
+					{
+						$redirect = 'gutenberg'; // overload for JS processing
+						$attachment = get_post($new_attach_id); 
+						$js_attach = wp_prepare_attachment_for_js($attachment); 
+						$qItem->addResult(['file' => $js_attach]);
+					}
+
+					if (isset($redirect))
+					{
+						$qItem->addResult([ 'redirect' => $redirect   ]); 
+					}
+					$result = $qItem->result();
+				}
+					$this->send($result);
+								
+				exit();
+			}
+
+			if ($i >= 15) // safeguard. 
+			{
+				//$this->send((object) $result_json);
+				$result = [
+					'is_error' => true, 
+					'is_done' => true, 
+					'message' => __('Limit of attempts exceeded. Possible connection issue. Try again later. ', 'shortpixel-image-optimiser'),
+				]; 
+				
+				Log::addTemp('Timeout 15x');
+
+				$this->send((object)$result);
+				exit('Timeout');
+				break; 
+			}
+
+			sleep(3); // prevent in case of fast connection hammering the API
+			$i++; 
+		}
+	}
+
 	protected function getMediaItem($id, $type)
 	{
 		$fs = \wpSPIO()->filesystem();
 		return $fs->getImage($id, $type);
 	}
+
+	
 
 	protected function getItemEditWarning($json, $data)
 	{
@@ -441,13 +645,9 @@ class AjaxController
 			$mediaItem->resetPrevent();
 		}
 
-
-
 		$control = new QueueController();
 		$json = new \stdClass;
 		$json->$type = new \stdClass;
-
-
 
 		$args = [];
 
@@ -467,8 +667,9 @@ class AjaxController
 
 	protected function purgeCDNCache($json, $data)
 	{
-		$purge =  isset($_POST['purge']) ? sanitize_text_field($_POST['purge']) : 'cssjs'; 
+		$this->checkActionAccess('purge', 'is_admin_user');
 
+		$purge =  isset($_POST['purge']) ? sanitize_text_field($_POST['purge']) : 'cssjs'; 
 
 		$CDNController = new \ShortPixel\Controller\Front\CDNController();
 		$result = $CDNController->purgeCDN(['purge' => $purge]);
@@ -477,14 +678,13 @@ class AjaxController
 		$json->status = true;
 
 		return $json;
-
-		
 	}
 
 				
 	protected function importexportSettings($json, $data)
 	{
 		$action = (isset($_POST['actionType'])) ? sanitize_text_field($_POST['actionType']) : 'export'; 
+		$this->checkActionAccess($action, 'is_admin_user');
 		$settings = \wpSPIO()->settings();
 
 		if ('import' === $action)
@@ -701,7 +901,6 @@ class AjaxController
 		$queueController = new QueueController();
 		$result  = $queueController->addItemToQueue($imageModel, $args);
 
-	
 		$json->$type->results = [$result];
 		$json->$type->qstatus = $queueController->getLastQueueStatus();
 
@@ -764,29 +963,39 @@ class AjaxController
 	{
 		$id = $data['id'];
 		$type = $data['type']; 
+		// undo or redo 
 		$action_type = isset($_POST['action_type']) ? sanitize_text_field($_POST['action_type']) : 'undo'; 
 
 		$imageModel = $this->getMediaItem($id, $type); 
+		$this->checkImageAccess($imageModel);
+
+
+		// @todo Should e.v be moved to QItem hop. 
+		/*$queueController = new QueueController();
+		$action = ('redo' == $action_type) ? 'redoAI' : 'undoAI'; 
+		
+		$result  = $queueController->addItemToQueue($imageModel, ['action' => $action]);
+*/
 		$queueItem = new QueueItem(['imageModel' => $imageModel]);
 
 		$queueItem->getAltDataAction(); 
 
 		$api = $queueItem->getApiController('getAltData'); 
 
-		$metadata = $api->undoAltData($queueItem);
+		$altData = $api->undoAltData($queueItem);
 
 		if ('redo' == $action_type)
 		{
 			 return $this->requestAlt($json, $data);
-		}
+		} 
 
-
-		$json->$type = (object) $metadata; 
-		$json->$type->results = null;
-		$json->status = true; 
+		$json->$type = $altData;
+		$json->status = true;
 		
 		return $json;
 	}
+
+
 
 	protected function finishBulk($json, $data)
 	{
@@ -812,26 +1021,30 @@ class AjaxController
 		
 		if (isset($_POST['filter_startdate'])) 
 		{
-			 $filters['start_date'] = intval($_POST['filter_startdate']); 
+			 $filters['start_date'] = sanitize_text_field($_POST['filter_startdate']); 
 			 $has_filters = true; 	 
 		}
 		if (isset($_POST['filter_enddate']))
 		{
-			 $filters['end_date'] = intval($_POST['filter_enddate']); 
+			 $filters['end_date'] = sanitize_text_field($_POST['filter_enddate']); 
 			 $has_filters = true; 
-
 		}
 
 		$args = []; 
 		if (true === $has_filters)
 		{ 
 			$args['filters'] = $filters; 
+			Log::addTemp('Queue starting with filters: ', $filters);
 		}
+
 		
-
-
 		$bulkControl = BulkController::getInstance();
-		$stats = $bulkControl->createNewBulk('media', $args);
+		// This is where the settings start to break and double. This info is also needs inside the process. 
+		$doMedia = filter_var(sanitize_text_field($_POST['mediaActive']), FILTER_VALIDATE_BOOLEAN);
+		$doAi = filter_var(sanitize_text_field($_POST['aiActive']), FILTER_VALIDATE_BOOLEAN);
+		$mediaArgs = array_merge($args, ['doMedia' => $doMedia, 'doAi' => $doAi]);
+
+		$stats = $bulkControl->createNewBulk('media', $mediaArgs);
 		$json->media->stats = $stats;
 
 		$stats = $bulkControl->createNewBulk('custom', $args);
@@ -848,13 +1061,10 @@ class AjaxController
 		$doCustom = filter_var(sanitize_text_field($_POST['customActive']), FILTER_VALIDATE_BOOLEAN);
 		$doWebp = filter_var(sanitize_text_field($_POST['webpActive']), FILTER_VALIDATE_BOOLEAN);
 		$doAvif = filter_var(sanitize_text_field($_POST['avifActive']), FILTER_VALIDATE_BOOLEAN);
-		
 		$doAi = filter_var(sanitize_text_field($_POST['aiActive']), FILTER_VALIDATE_BOOLEAN);
 
 		$aiPreserve = isset($_POST['aiPreserve']) ? filter_var(sanitize_text_field($_POST['aiPreserve']), FILTER_VALIDATE_BOOLEAN) : null; 
-
 		$backgroundProcess = filter_var(sanitize_text_field($_POST['backgroundProcess']), FILTER_VALIDATE_BOOLEAN);
-
 
 		// Can be hidden
 		if (isset($_POST['thumbsActive'])) {
@@ -930,6 +1140,18 @@ class AjaxController
 		return $json;
 	}
 
+	protected function startUndoAI($json, $data)
+	{
+		$bulkControl = BulkController::getInstance();
+		QueueController::resetQueues(); // prevent any weirdness
+
+		$stats = $bulkControl->createNewBulk('media', ['customOp' => 'bulk-undoAI']);
+		$json->media->stats = $stats;
+
+		return $json;
+
+	}
+
 	protected function startMigrateAll($json, $data)
 	{
 		$bulkControl = BulkController::getInstance();
@@ -991,13 +1213,14 @@ class AjaxController
 		if (! is_null($settingsData))
 		{
 			 $json = json_decode(stripslashes($settingsData), true);
-			 $settingsData = array_map('sanitize_text_field', $json); 
+			 $settings = \wpSPIO()->settings(); 
+			 //$settingsData = array_map('sanitize_text_field', $json); 
+			 $settingsData = $settings->getSanitizedData($json, false);
 		}
 		else
 		{
 			 $settingsData = [];  // null - empty array
 		}
-
 
 		$result_json = [
 			'error' => __('Something went wrong', 'shortpixel-image-optimiser'), 
@@ -1005,6 +1228,7 @@ class AjaxController
 		];
 
 		$imageModel = \wpSPIO()->filesystem()->getMediaImage($item_id); 
+		
 
 		if (false === $imageModel)
 		{
@@ -1036,10 +1260,15 @@ class AjaxController
 			
 			if (property_exists($result, 'is_done') && true === $result->is_done)
 			{
+				// If is done and is error, bail out. 
+				if (true === $result->is_error) 
+				{
+					$this->send($result);
+				}
+				
 				if ('requestAlt' === $state)
 				{
 					$remote_id = $result->remote_id; 
-				//	$qItem->retrieveAltAction($remote_id);
 					
 					$result = $optimizer->enqueueItem($qItem, ['preview_only' => true, 'action' => 'retrieveAlt', 'remote_id' => $remote_id]); 
 					$state = 'retrieveAlt';
@@ -1053,11 +1282,13 @@ class AjaxController
 						$aiModel = AiDataModel::getModelByAttachment($qItem->item_id, 'media');
 
 						 $aiData = $optimizer->formatResultData($result->aiData, $qItem);
-						 list($items, $aiData) = $optimizer->formatGenerated($aiData, $aiModel->getCurrentData(), $aiModel->getOriginalData());
+						 list($items, $aiData) = $optimizer->formatGenerated($aiData, $aiModel->getCurrentData(), $aiModel->getOriginalData(), true);
 						 $aiData['item_id'] = $qItem->item_id;
 						 $aiData['time_generated'] = time(); 
 
 						 set_transient('spio_settings_ai_example', $aiData, MONTH_IN_SECONDS);
+						 set_transient('spio_settings_ai_example_id', $qItem->item_id, MONTH_IN_SECONDS); 
+						 
 						 $aiData['aiData'] = true; // for the JS check
 						 $this->send((object) $aiData);
 						 $is_done = true; 
@@ -1163,8 +1394,6 @@ class AjaxController
 	/** Data for the compare function */
 	protected function getComparerData($json, $data)
 	{
-
-
 		$type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : 'media';
 		$id = isset($_POST['id']) ? intval($_POST['id']) : false;
 
@@ -1182,6 +1411,12 @@ class AjaxController
 
 		$this->checkImageAccess($imageObj);
 
+
+		if (false === $imageObj->isOptimized())
+		{
+			$imageObj = $imageObj->getSomethingOptimized();
+		}
+
 		// With PDF, the thumbnail called 'full' is the image, the main is the PDF file
 		if ($imageObj->getExtension() == 'pdf') {
 			$thumbImg = $imageObj->getThumbnail('full');
@@ -1189,6 +1424,8 @@ class AjaxController
 				$imageObj = $thumbImg;
 			}
 		}
+
+
 
 		$backupFile = $imageObj->getBackupFile();
 		if (is_object($backupFile))
@@ -1439,7 +1676,7 @@ class AjaxController
 
 	protected function loadLogFile($json, $data)
 	{
-		$logFile = $data['logFile'];
+		$logFile = $data['logFile'] . '.log';
 		$type = $data['type'];
 		$fs = \wpSPIO()->filesystem();
 
@@ -1457,14 +1694,12 @@ class AjaxController
 
 		$json->$type->logType = $logType;
 
-		if (! $log) {
+		if (false === $log) {
 			$json->$type->is_error = true;
 			$json->$type->result = __('Log file does not exist', 'shortpixel-image-optimiser');
 			return $json;
 		}
 
-		//	$date = UiHelper::formatTS($log->date);
-		//$logData = $bulkController->getLogData($logFile); // starts from options.
 		$date = (isset($logData['date'])) ? UiHelper::formatTS($logData['date']) : false;
 		$content = trim($log->getContents());
 		$lines = array_filter(explode(';', $content));
@@ -1623,10 +1858,17 @@ class AjaxController
 
 	private function removeBackup($json, $data)
 	{
+		if (wp_verify_nonce($_POST['tools-nonce'], 'empty-backup')) {			
 
-		if (wp_verify_nonce($_POST['tools-nonce'], 'empty-backup')) {
+			$fs = \wpSPIO()->filesystem(); 
+			
+			$fs->moveLogFiles(); 
+
 			$dir = \wpSPIO()->filesystem()->getDirectory(SHORTPIXEL_BACKUP_FOLDER);
-			$dir->recursiveDelete();
+			$dir->recursiveDelete(); 
+
+			$fs->moveLogFiles(['to_temp' => false]);
+
 			$json->settings->results = __('The backups have been removed. You can close the window', 'shortpixel-image-optimiser');
 		} else {
 			$json->settings->results = __('Error: Invalid Nonce in empty backups', 'shortpixel-image-optimiser');

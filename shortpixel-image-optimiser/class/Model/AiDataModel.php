@@ -23,6 +23,7 @@ class AiDataModel
         'alt' => null, 
         'caption' => null, 
         'description' => null, 
+        'post_title' =>  null, 
         'filebase' => null, 
     ];
 
@@ -30,12 +31,14 @@ class AiDataModel
         'alt' => null,  
         'caption' => null, 
         'description' => null, 
+        'post_title' => null, 
     ]; 
 
     protected $generated = [
         'alt' => null,  
         'caption' => null, 
         'description' => null,
+        'post_title' => null, 
         'filebase' => null, 
     ]; 
 
@@ -138,24 +141,34 @@ class AiDataModel
         if (true === $settings->aiPreserve)
         {
             $currentData = $this->getCurrentData(); 
-            $ignore_fields = array_keys(array_filter($currentData));
+            $ignore_fields = array_diff(array_keys( array_filter($currentData) ), ['post_title']);
+            // Exception via array_diff :: post_title always overwrite because it is always filled
         }
 
-
        // $fields = ['ai_gen_alt', 'ai_gen_caption', 'ai_gen_description', 'ai_gen_filename']; 
-        $fields = ['alt', 'caption', 'description', 'filename']; 
+        $fields = ['alt', 'caption', 'description', 'filename', 'post_title']; 
 
         $paramlist = [
             'languages' => $settings->ai_language, 
             'context' => $settings->ai_general_context, 
         ]; 
+
+        if (true === $settings->ai_use_post)
+        {
+            $parent_title = $this->getConnectedPostTitle(); 
+            if (false !== $parent_title && false === is_null($parent_title))
+            {
+                $paramlist['use_parent_post_title'] = true; 
+                $paramlist['parent_post_title'] = $parent_title;
+            }
+        }
+
         $returnDataList = []; 
         $field_status = false; // check if there are any fields to process / not all excluded. 
 
         foreach($fields as $field_name)
         {
             $api_name = $field_name; 
-            //$paramlist[$api_name] = [];
 
             switch($api_name)
             {
@@ -164,6 +177,9 @@ class AiDataModel
                 break;
                 case 'filename': 
                     $api_name = 'file';
+                break; 
+                case 'post_title': 
+                    $api_name = 'title';
                 break; 
             }
 
@@ -242,16 +258,22 @@ class AiDataModel
         $post = get_post($this->attach_id); 
         $post_updated = false; 
 
-        if (isset($data['caption']) && false !== $data['caption'] && false === is_int($data['caption']))
+        if (isset($data['caption']) && false !== $data['caption'] && false === is_numeric($data['caption']))
         {
             $post->post_excerpt = $data['caption'];
             $post_updated = true; 
         }
 
-        if (isset($data['description']) && false !== $data['description'] && false === is_int($data['description']))
+        if (isset($data['description']) && false !== $data['description'] && false === is_numeric($data['description']))
         {
             $post->post_content = $data['description'];
             $post_updated = true; 
+        }
+
+        if (isset($data['post_title']) && false !== $data['post_title'] && false === is_numeric($data['post_title']))
+        {
+             $post->post_title = $data['post_title'];
+             $post_updated = true;
         }
 
         if (true === $post_updated)
@@ -313,6 +335,24 @@ class AiDataModel
         
     }
 
+    protected function getConnectedPostTitle()
+    {
+         $attach_id = $this->attach_id; 
+         $post_parent = get_post_parent($attach_id); 
+         if (! is_null($post_parent))
+         {
+            $post = get_post($post_parent); 
+            if (false === is_null($post))
+            {
+                $post_title = $post->post_title; 
+                return $post_title; 
+            }
+         }
+
+         return false;
+         
+    }
+
     // Should return the current situation. If not stored in the database - or different from meta - uh something should be returned. 
     protected function setCurrentData()
     {
@@ -322,6 +362,7 @@ class AiDataModel
 
         $current_description = $post->post_content; 
         $current_caption = $post->post_excerpt; 
+        $current_post_title = $post->post_title; 
 
         /*$this->current = [
              'alt' => $current_alt, 
@@ -332,7 +373,8 @@ class AiDataModel
 
         $this->current['alt'] = $current_alt; 
         $this->current['description'] = $current_description; 
-        $this->current['caption'] = $current_caption; 
+        $this->current['caption'] = $current_caption;
+        $this->current['post_title'] = $current_post_title; 
 
         $this->current_is_set = true; 
 

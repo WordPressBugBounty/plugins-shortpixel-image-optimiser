@@ -141,6 +141,12 @@ class AdminController extends \ShortPixel\Controller
         return $meta; // It's a filter, otherwise no thumbs
     }
 
+    /** Handle AI processing on upload image 
+     * 
+     * @param mixed $meta 
+     * @param mixed $id 
+     * @return mixed 
+     */
     public function handleAiImageUploadHook($meta, $id)
     {
               // Media only hook
@@ -210,6 +216,11 @@ class AdminController extends \ShortPixel\Controller
     /* Function to process Hook coming from the WP cron system */
     public function processCronHook($bulk)
     {
+       // Cron shenenigans
+        if (is_array($bulk) && isset($bulk['bulk']))
+        {
+           $bulk = $bulk['bulk'];
+        }
 
         $args = array(
             'max_runs' => 10,
@@ -245,10 +256,11 @@ class AdminController extends \ShortPixel\Controller
         $args = apply_filters('shortpixel/process_hook/options', $args);
 
         $queueArgs = []; 
-				if ($args['bulk'] === true)
+				if (true == $args['bulk'])
 				{
 					 $queueArgs['is_bulk'] = true;
 				}
+
 
 			  $control = new QueueController($queueArgs);
         $env = \wpSPIO()->env();
@@ -391,10 +403,9 @@ class AdminController extends \ShortPixel\Controller
           }
       }
 
-
       return $result; 
-
     }
+
 		// WP functions that are not loaded during Cron Time.
 		protected function loadCronCompat()
 		{
@@ -407,9 +418,6 @@ class AdminController extends \ShortPixel\Controller
          {
            include_once(ABSPATH . 'wp-admin/includes/image.php' );
          }
-
-
-
 		}
 
     /** Filter for Medialibrary items in list and grid view. Because grid uses ajax needs to be caught more general.
@@ -474,7 +482,6 @@ class AdminController extends \ShortPixel\Controller
                 $where = $wpdb->prepare($sql, '_shortpixel_prevent_optimize');
             break;
         }
-
 
         return $where;
     }

@@ -278,6 +278,7 @@
 		background-color: #fff;
 		height: 36px;
 		width: 290px;
+		display: inline-block;
 	}
 	content ul li input {
 		width: 1rem;
@@ -291,7 +292,7 @@
   }
   section#tab-debug
   {
-			h2 { left: 738px; }
+		h2 { left: 738px; }
      .flex {
        display: flex;
      }
@@ -310,6 +311,7 @@
             display: table-row;
             >span {
               display: table-cell;
+			  padding: 0 4px;
             }
             &.head > span { font-weight: 700; }
         }
